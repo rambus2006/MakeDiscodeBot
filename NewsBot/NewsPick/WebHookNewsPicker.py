@@ -3,6 +3,7 @@ import time
 import re
 import html
 import requests
+import json
 import feedparser
 from dotenv import load_dotenv
 from datetime import datetime
@@ -11,14 +12,33 @@ load_dotenv()
 
 WEBHOOK_URL = os.environ["DISCORD_WEBHOOK_URL"]
 
-# 확인 주기: 60초
-CHECK_INTERVAL = 60
 
 # 한 번에 보낼 최대 뉴스 개수
 MAX_NEWS = 5
 
 # 이미 보낸 뉴스 저장
-sent_news = set()
+SENT_NEWS_FILE = "sent_news.json"
+
+
+def load_sent_news():
+
+    if not os.path.exists(SENT_NEWS_FILE):
+        return set()
+
+    try:
+        with open(SENT_NEWS_FILE, "r", encoding="utf-8") as f:
+            return set(json.load(f))
+
+    except Exception:
+        return set()
+
+
+def save_sent_news(sent_news):
+
+    with open(SENT_NEWS_FILE, "w", encoding="utf-8") as f:
+        json.dump(list(sent_news), f, ensure_ascii=False, indent=2)
+sent_news = load_sent_news()
+
 
 
 # --------------------------------
@@ -149,66 +169,45 @@ def get_news():
 # --------------------------------
 # 메인 루프
 # --------------------------------
-
 def main():
 
     print("================================")
-    print(" NewsPick 실시간 뉴스봇 시작")
+    print(" NewsPick 뉴스봇 실행")
     print("================================")
 
     if not WEBHOOK_URL:
-
         print("ERROR: DISCORD_WEBHOOK_URL이 없습니다.")
-
         return
 
-    while True:
+    try:
+        news_list = get_news()
 
-        try:
+        print(
+            f"[{datetime.now().strftime('%H:%M:%S')}] "
+            f"새 뉴스 {len(news_list)}개 발견"
+        )
 
-            news_list = get_news()
+        for news in news_list[:MAX_NEWS]:
 
-            print(
-                f"[{datetime.now().strftime('%H:%M:%S')}] "
-                f"새 뉴스 {len(news_list)}개 발견"
+            send_to_discord(
+                title=news["title"],
+                description=news["summary"],
+                url=news["link"],
+                category=news["category"]
             )
 
-            # 너무 많은 뉴스가 한번에 올라가는 것을 방지
-            for news in news_list[:MAX_NEWS]:
+            sent_news.add(news["id"])
+            save_sent_news(sent_news)
 
-                send_to_discord(
-                    title=news["title"],
-                    description=news["summary"],
-                    url=news["link"],
-                    category=news["category"]
-                )
+            # 뉴스 사이에 1초 간격
+            time.sleep(1)
 
-                sent_news.add(news["id"])
+        print("뉴스 전송 완료")
 
-                # 너무 빠르게 전송하지 않기
-                time.sleep(1)
 
-            # 메모리 관리
-            if len(sent_news) > 1000:
+    except Exception as e:
 
-                sent_news.clear()
-
-            print(
-                f"다음 확인까지 {CHECK_INTERVAL}초 대기..."
-            )
-
-            time.sleep(CHECK_INTERVAL)
-
-        except KeyboardInterrupt:
-
-            print("\n뉴스봇 종료")
-            break
-
-        except Exception as e:
-
-            print(f"[ERROR] {e}")
-
-            time.sleep(CHECK_INTERVAL)
+        print(f"[ERROR] {e}")
 
 
 if __name__ == "__main__":
