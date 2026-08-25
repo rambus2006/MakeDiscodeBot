@@ -3,3 +3,13 @@ __pycache__/
 *.pyc
 seen_urls.json
 api키정보.txt
+.venv/
+
+typing_extensions==4.15.0
+tzdata==2025.2
+urllib3==2.7.0
+uvicorn==0.46.0
+watchfiles==1.1.1
+websockets==16.0
+yapf==0.43.0
+yarl==1.24.5
