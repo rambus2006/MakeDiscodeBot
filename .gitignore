@@ -1,2 +1,5 @@
-config.json
-/node_modules
+.env
+__pycache__/
+*.pyc
+seen_urls.json
+api키정보.txt
